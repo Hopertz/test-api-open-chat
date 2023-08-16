@@ -71,6 +71,14 @@ func main() {
 	})
 
 	server.OnEvent("/", "newUser", func(s socketio.Conn, newUser ChatUser) {
+		//Check if user already exists and delete old user
+		for i, user := range users {
+			if user.Username == newUser.Username {
+				users = append(users[:i], users[i+1:]...)
+				break
+			}
+		}
+
 		users = append(users, newUser)
 		server.BroadcastToRoom("/", "chat", "newUserResponse", users)
 	})
