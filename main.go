@@ -2,12 +2,22 @@ package main
 
 import (
 	"log"
+	"log/slog"
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 
 	socketio "github.com/googollee/go-socket.io"
 )
+
+func init() {
+
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+
+	slog.SetDefault(logger)
+
+}
 
 type ChatUser struct {
 	Username string `json:"userName"`
@@ -47,13 +57,11 @@ func main() {
 	users := []ChatUser{}
 
 	server.OnConnect("/", func(s socketio.Conn) error {
-		log.Printf("⚡: %s user just connected", s.ID())
 		server.JoinRoom("/", "chat", s)
 		return nil
 	})
 
 	server.OnEvent("/", "message", func(s socketio.Conn, msg Message) {
-		log.Println("🔥: New message", msg)
 		server.BroadcastToRoom("/", "chat", "messageResponse", msg)
 
 	})
@@ -63,18 +71,16 @@ func main() {
 	})
 
 	server.OnEvent("/", "newUser", func(s socketio.Conn, newUser ChatUser) {
-		log.Println("🔥: A new user connected other event", newUser.Username, newUser.SocketID)
-
 		users = append(users, newUser)
 		server.BroadcastToRoom("/", "chat", "newUserResponse", users)
 	})
 
 	server.OnError("/", func(s socketio.Conn, e error) {
-		log.Println("meet error:", e)
+		slog.Error("meet error:", e)
 	})
 
 	server.OnDisconnect("/", func(s socketio.Conn, reason string) {
-		log.Println("🔥: A user disconnected", reason)
+		slog.Info("closed", reason)
 		for i, user := range users {
 			if user.SocketID == s.ID() {
 				users = append(users[:i], users[i+1:]...)
